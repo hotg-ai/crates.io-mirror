@@ -10,15 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func Handler(logger *zap.Logger, upstream *url.URL) http.Handler {
-	mux := http.NewServeMux()
 
-	proxied := proxy(upstream)
-
-	mux.HandleFunc("/", proxied)
-
-	return logged(logger, mux)
-}
 
 // proxy a request to another server.
 //

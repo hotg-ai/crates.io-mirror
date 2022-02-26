@@ -54,6 +54,7 @@ func logged(rootLogger *zap.Logger, handler http.Handler) http.Handler {
 
 type loggerKey struct{}
 
+// getLogger returns the logger specific to this request.
 func getLogger(r *http.Request) *zap.Logger {
 	logger, ok := r.Context().Value(loggerKey{}).(*zap.Logger)
 

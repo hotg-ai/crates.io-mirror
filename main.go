@@ -27,7 +27,6 @@ func main() {
 	}
 
 	logger := opts.logger()
-
 	logger.Info("Started", zap.Any("args", opts))
 
 	upstream, err := url.Parse(opts.Upstream)
@@ -36,10 +35,11 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
+	cache := newS3Cache(logger, opts.Bucket)
 
 	server := http.Server{
 		Addr:    addr,
-		Handler: Handler(logger, upstream),
+		Handler: Handler(logger, upstream, cache),
 	}
 
 	logger.Info("Serving", zap.Any("addr", addr))
@@ -55,6 +55,7 @@ type opts struct {
 	Upstream string `short:"u" long:"upstream" description:"The URL to proxy requests to" env:"UPSTREAM"`
 	Host     string `short:"H" long:"host" description:"The interface to listen on" env:"HOST"`
 	Port     int    `short:"p" long:"port" description:"The port to use" env:"PORT"`
+	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in"`
 }
 
 func (o opts) logger() *zap.Logger {
@@ -90,4 +91,15 @@ func shutdownOnCtrlC(logger *zap.Logger, s *http.Server) {
 	if err := s.Shutdown(ctx); err != nil {
 		logger.Fatal("Unable to shutdown", zap.Error(err))
 	}
+}
+
+func Handler(logger *zap.Logger, upstream *url.URL, cache Cache) http.Handler {
+	mux := http.NewServeMux()
+
+	proxied := proxy(upstream)
+
+	mux.HandleFunc("/api/v1/crates/", cached(cache, proxied))
+	mux.HandleFunc("/", proxied)
+
+	return logged(logger, mux)
 }
