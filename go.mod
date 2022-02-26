@@ -3,6 +3,7 @@ module github.com/hotg-ai/crates-io-mirror
 go 1.17
 
 require (
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/jessevdk/go-flags v1.5.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
