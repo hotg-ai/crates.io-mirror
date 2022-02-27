@@ -34,7 +34,11 @@ func main() {
 
 	upstream, err := url.Parse(opts.Upstream)
 	if err != nil {
-		logger.Fatal("Unable to parse the upstream URL", zap.Error(err), zap.String("upstream", opts.Upstream))
+		logger.Fatal(
+			"Unable to parse the upstream URL",
+			zap.Error(err),
+			zap.String("upstream", opts.Upstream),
+		)
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
