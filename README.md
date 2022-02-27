@@ -14,7 +14,7 @@ TL;DR: Add the following to your `~/.cargo/config.toml`:
 ```toml
 # Define a source for our mirror that points to hotg's index.
 [source.mirror]
-registry = "https://github.com/hotg-ai/crates.io-index-mirror"
+registry = "https://github.com/hotg-ai/crates.io-index"
 
 # The crates.io default source for crates is available under the name
 # "crates-io". We can use the "replace-with" key to override it with our mirror.
