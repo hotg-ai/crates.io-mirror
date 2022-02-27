@@ -2,14 +2,9 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +13,8 @@ type Cache interface {
 	Update(logger *zap.Logger, path string, content []byte) error
 }
 
+// cached is a middleware function that tries to use serve up cached responses
+// where possible.
 func cached(c Cache, handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := getLogger(r)
@@ -81,30 +78,4 @@ func (t *teeResponseWriter) WriteHeader(code int) {
 
 func (t *teeResponseWriter) Write(data []byte) (int, error) {
 	return t.writer.Write(data)
-}
-
-func newS3Cache(bucket string) (Cache, error) {
-	session, err := session.NewSession()
-	if err != nil {
-		return nil, err
-	}
-
-	uploader := s3manager.NewUploader(session)
-	downloader := s3manager.NewDownloader(session)
-
-	return &s3Cache{bucket, uploader, downloader}, nil
-}
-
-func newLocalCache(dir string) (*localCache, error) {
-	dir, err := filepath.Abs(dir)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if err = os.MkdirAll(dir, 0o744); err != nil {
-		return nil, fmt.Errorf("unable to create the cache directory: %w", err)
-	}
-
-	return &localCache{dir}, nil
 }

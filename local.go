@@ -6,16 +6,31 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
 )
 
+var ErrOutsideBaseDirectory = errors.New("the resulting path is outside the local cache's base directory")
+
 type localCache struct {
 	baseDir string
 }
 
-var ErrOutsideBaseDirectory = errors.New("the resulting path is outside the local cache's base directory")
+func newLocalCache(dir string) (*localCache, error) {
+	dir, err := filepath.Abs(dir)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = os.MkdirAll(dir, 0o744); err != nil {
+		return nil, fmt.Errorf("unable to create the cache directory: %w", err)
+	}
+
+	return &localCache{dir}, nil
+}
 
 func (l *localCache) fullPath(p string) (string, error) {
 	joined := path.Join(l.baseDir, p)

@@ -21,7 +21,7 @@ type options struct {
 	Upstream string `short:"u" long:"upstream" description:"The URL to proxy requests to" env:"UPSTREAM"`
 	Host     string `short:"H" long:"host" description:"The interface to listen on" env:"HOST"`
 	Port     int    `short:"p" long:"port" description:"The port to use" env:"PORT"`
-	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in"`
+	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in" env:"S3_BUCKET"`
 	CacheDir string `short:"c" long:"cache-dir" description:"The directory to use when caching locally" env:"CACHE_DIR"`
 }
 
@@ -139,5 +139,5 @@ func defaultCacheDir() string {
 		return "cache"
 	}
 
-	return path.Join(dir, "crates.io-proxy")
+	return path.Join(dir, "crates.io-mirror")
 }
