@@ -9,9 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// proxy a request to another server.
-//
-// Mostly copied from https://gist.github.com/yowu/f7dc34bd4736a65ff28d
+// proxy returns a http.HandlerFunc that passes all requests through to another
+// server.
 func proxy(upstream *url.URL) http.HandlerFunc {
 	client := http.Client{
 		Timeout: 60 * time.Second,
@@ -34,7 +33,8 @@ func proxy(upstream *url.URL) http.HandlerFunc {
 		}
 		req.Header = r.Header
 
-		// For some reason upgrading to HTTP2 fails
+		// Telling the client to upgrade to HTTP2 seems to fail, so let's remove
+		// these headers for now
 		req.Header.Del("Upgrade")
 		req.Header.Del("Connection")
 
@@ -56,11 +56,6 @@ func proxy(upstream *url.URL) http.HandlerFunc {
 			return
 		}
 		defer response.Body.Close()
-
-		logger.Debug(
-			"Receiving response from upstream",
-			zap.Any("headers", response.Header),
-		)
 
 		w.WriteHeader(response.StatusCode)
 		if _, err := io.Copy(w, response.Body); err != nil {

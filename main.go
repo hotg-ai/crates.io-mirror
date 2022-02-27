@@ -16,8 +16,17 @@ import (
 	"go.uber.org/zap"
 )
 
+type options struct {
+	Verbose  bool   `short:"v" long:"verbose" description:"Show more verbose debug information" env:"VERBOSE"`
+	Upstream string `short:"u" long:"upstream" description:"The URL to proxy requests to" env:"UPSTREAM"`
+	Host     string `short:"H" long:"host" description:"The interface to listen on" env:"HOST"`
+	Port     int    `short:"p" long:"port" description:"The port to use" env:"PORT"`
+	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in"`
+	CacheDir string `short:"c" long:"cache-dir" description:"The directory to use when caching locally" env:"CACHE_DIR"`
+}
+
 func main() {
-	opts := opts{
+	opts := options{
 		Host:     "localhost",
 		Port:     8000,
 		Upstream: "https://crates.io/",
@@ -42,23 +51,7 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
-
-	var cache Cache
-
-	if opts.Bucket != "" {
-		s3, err := newS3Cache(opts.Bucket)
-		if err != nil {
-			logger.Fatal("Unable to initialize the s3 cache", zap.Error(err))
-		}
-		cache = s3
-	} else {
-		local, err := newLocalCache(opts.CacheDir)
-		if err != nil {
-			logger.Fatal("Unable to initialize the local cache", zap.Error(err))
-		}
-		cache = local
-	}
-
+	cache := opts.loadCache(logger)
 	server := http.Server{
 		Addr:    addr,
 		Handler: Handler(logger, upstream, cache),
@@ -72,16 +65,7 @@ func main() {
 	}
 }
 
-type opts struct {
-	Verbose  bool   `short:"v" long:"verbose" description:"Show more verbose debug information" env:"VERBOSE"`
-	Upstream string `short:"u" long:"upstream" description:"The URL to proxy requests to" env:"UPSTREAM"`
-	Host     string `short:"H" long:"host" description:"The interface to listen on" env:"HOST"`
-	Port     int    `short:"p" long:"port" description:"The port to use" env:"PORT"`
-	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in"`
-	CacheDir string `short:"c" long:"cache-dir" description:"The directory to use when caching locally" env:"CACHE_DIR"`
-}
-
-func (o opts) logger() *zap.Logger {
+func (o options) logger() *zap.Logger {
 	var config zap.Config
 
 	if o.Verbose {
@@ -98,6 +82,25 @@ func (o opts) logger() *zap.Logger {
 	zap.RedirectStdLog(logger)
 
 	return logger
+}
+
+func (opts options) loadCache(logger *zap.Logger) Cache {
+	var cache Cache
+
+	if opts.Bucket != "" {
+		s3, err := newS3Cache(opts.Bucket)
+		if err != nil {
+			logger.Fatal("Unable to initialize the s3 cache", zap.Error(err))
+		}
+		cache = s3
+	} else {
+		local, err := newLocalCache(opts.CacheDir)
+		if err != nil {
+			logger.Fatal("Unable to initialize the local cache", zap.Error(err))
+		}
+		cache = local
+	}
+	return cache
 }
 
 func shutdownOnCtrlC(logger *zap.Logger, s *http.Server) {
