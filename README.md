@@ -1,4 +1,4 @@
-# HOTG's crates.io Mirror
+# HOTG's crates.io Proxy
 
 A simple mirror that proxy requests to crates.io and cache any crates that are
 downloaded.

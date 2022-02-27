@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
 	"go.uber.org/zap"
 )
@@ -19,6 +21,7 @@ func main() {
 		Host:     "localhost",
 		Port:     8080,
 		Upstream: "https://crates.io/",
+		CacheDir: defaultCacheDir(),
 	}
 
 	_, err := flags.Parse(&opts)
@@ -35,7 +38,22 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
-	cache := newS3Cache(logger, opts.Bucket)
+
+	var cache Cache
+
+	if opts.Bucket != "" {
+		s3, err := newS3Cache(opts.Bucket)
+		if err != nil {
+			logger.Fatal("Unable to initialize the s3 cache", zap.Error(err))
+		}
+		cache = s3
+	} else {
+		local, err := newLocalCache(opts.CacheDir)
+		if err != nil {
+			logger.Fatal("Unable to initialize the local cache", zap.Error(err))
+		}
+		cache = local
+	}
 
 	server := http.Server{
 		Addr:    addr,
@@ -56,6 +74,7 @@ type opts struct {
 	Host     string `short:"H" long:"host" description:"The interface to listen on" env:"HOST"`
 	Port     int    `short:"p" long:"port" description:"The port to use" env:"PORT"`
 	Bucket   string `short:"b" long:"bucket" description:"The bucket to cache responses in"`
+	CacheDir string `short:"c" long:"cache-dir" description:"The directory to use when caching locally" env:"CACHE_DIR"`
 }
 
 func (o opts) logger() *zap.Logger {
@@ -94,12 +113,24 @@ func shutdownOnCtrlC(logger *zap.Logger, s *http.Server) {
 }
 
 func Handler(logger *zap.Logger, upstream *url.URL, cache Cache) http.Handler {
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 
 	proxied := proxy(upstream)
 
-	mux.HandleFunc("/api/v1/crates/", cached(cache, proxied))
-	mux.HandleFunc("/", proxied)
+	r.HandleFunc(
+		`/api/v1/crates/{crate:[\w\d_-]*}/{version:[\d.]*}/download`,
+		cached(cache, proxied),
+	).Methods(http.MethodGet)
+	r.HandleFunc("/", proxied)
 
-	return logged(logger, mux)
+	return logged(logger, r)
+}
+
+func defaultCacheDir() string {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return "cache"
+	}
+
+	return path.Join(dir, "crates.io-proxy")
 }
