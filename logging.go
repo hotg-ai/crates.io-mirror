@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -27,7 +26,7 @@ func logged(rootLogger *zap.Logger, handler http.Handler) http.Handler {
 				logger.Error(
 					"Handler panicked",
 					zap.Any("error", err),
-					zap.Stack("stack"),
+					zap.StackSkip("stack", 1),
 				)
 			}
 		}()
@@ -41,13 +40,15 @@ func logged(rootLogger *zap.Logger, handler http.Handler) http.Handler {
 
 		logger.Info(
 			"Served a request",
-			zap.Any("response-code", spy.code),
+			zap.Any("status-code", spy.code),
+			zap.Any("status-text", http.StatusText(spy.code)),
 			zap.Any("bytes-written", spy.bytesWritten),
 			zap.Any("url", r.URL),
 			zap.Any("method", r.Method),
 			zap.Any("headers", r.Header),
 			zap.Any("duration", duration),
 			zap.Any("user-agent", r.UserAgent()),
+			zap.Any("remote-addr", r.RemoteAddr),
 		)
 	})
 }
@@ -59,8 +60,7 @@ func getLogger(r *http.Request) *zap.Logger {
 	logger, ok := r.Context().Value(loggerKey{}).(*zap.Logger)
 
 	if !ok {
-		msg := fmt.Sprintf("Attempted to get the request logger when the handler doesn't have one: %s", r.URL)
-		panic(msg)
+		return zap.L()
 	}
 
 	return logger

@@ -3,24 +3,18 @@ package main
 import (
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"time"
 
 	"go.uber.org/zap"
 )
 
-
-
 // proxy a request to another server.
 //
 // Mostly copied from https://gist.github.com/yowu/f7dc34bd4736a65ff28d
 func proxy(upstream *url.URL) http.HandlerFunc {
-	jar, _ := cookiejar.New(nil)
-
 	client := http.Client{
 		Timeout: 60 * time.Second,
-		Jar:     jar,
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +33,10 @@ func proxy(upstream *url.URL) http.HandlerFunc {
 			return
 		}
 		req.Header = r.Header
+
+		// For some reason upgrading to HTTP2 fails
+		req.Header.Del("Upgrade")
+		req.Header.Del("Connection")
 
 		logger.Debug(
 			"Proxying request to upstream",

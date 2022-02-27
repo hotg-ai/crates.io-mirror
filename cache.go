@@ -45,11 +45,20 @@ func cached(c Cache, handler http.HandlerFunc) http.HandlerFunc {
 
 		// Call the original handler and save the response to a buffer
 		tee := teeResponseWriter{
-			header:      func() http.Header { return w.Header() },
-			writeHeader: func(code int) { w.WriteHeader(code) },
-			writer:      io.MultiWriter(&buffer, w),
+			inner:  w,
+			code:   http.StatusOK,
+			writer: io.MultiWriter(&buffer, w),
 		}
 		handler(&tee, r)
+
+		if tee.code != http.StatusOK {
+			logger.Info(
+				"Not caching the result because the server didn't reply with a 200 OK",
+				zap.Any("status-code", tee.code),
+				zap.Any("status-text", http.StatusText(tee.code)),
+			)
+			return
+		}
 
 		if err := c.Update(logger, path, buffer.Bytes()); err != nil {
 			logger.Warn(
@@ -62,17 +71,18 @@ func cached(c Cache, handler http.HandlerFunc) http.HandlerFunc {
 }
 
 type teeResponseWriter struct {
-	header      func() http.Header
-	writeHeader func(code int)
-	writer      io.Writer
+	inner  http.ResponseWriter
+	code   int
+	writer io.Writer
 }
 
 func (t *teeResponseWriter) Header() http.Header {
-	return t.header()
+	return t.inner.Header()
 }
 
 func (t *teeResponseWriter) WriteHeader(code int) {
-	t.writeHeader(code)
+	t.code = code
+	t.inner.WriteHeader(code)
 }
 
 func (t *teeResponseWriter) Write(data []byte) (int, error) {

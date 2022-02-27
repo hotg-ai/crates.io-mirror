@@ -19,7 +19,7 @@ import (
 func main() {
 	opts := opts{
 		Host:     "localhost",
-		Port:     8080,
+		Port:     8000,
 		Upstream: "https://crates.io/",
 		CacheDir: defaultCacheDir(),
 	}
@@ -118,7 +118,7 @@ func Handler(logger *zap.Logger, upstream *url.URL, cache Cache) http.Handler {
 	proxied := proxy(upstream)
 
 	r.HandleFunc(
-		`/api/v1/crates/{crate:[\w\d_-]*}/{version:[\d.]*}/download`,
+		`/api/v1/crates/{crate:[\w\d_-]*}/{version:[^/]*}/download`,
 		cached(cache, proxied),
 	).Methods(http.MethodGet)
 	r.HandleFunc("/", proxied)
